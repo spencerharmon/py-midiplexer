@@ -126,18 +126,24 @@ class MidiTrack(Track):
         elif self.typ == "reset":
             return mido.Message(self.typ)
 
-    def trigger(self, port, scenemode: bool):
-        if scenemode:
-            if self.playing:
-                return
-            else:
-                port.send(self.msg)
-        else:
+    def trigger(self, port, desired_state):
+        if desired_state is None:
+            #trigger mode
             if self.playing:
                 self.playing=False
             else:
                 self.playing=True
             port.send(self.msg)
-    
+        elif desired_state:
+            #desired playing
+            if not self.playing:
+                port.send(self.msg)
+                self.playing = True
+        else:
+            # desired stopped
+            if self.playing:
+                port.send(self.msg)
+                self.playing = False
+                
     def __dict__(self):
         return {"label": self.label, "type": self.typ, "attributes": self.attr_dict}
