@@ -71,7 +71,7 @@ class MidiClient(Client):
                 # list of track instances for event. Queued tracklist of None is equivalent to "all"
                 desired_state = False if tracklist is None else desired_state
                 try:
-                  tracklist = self.tracks if tracklist is None else [self.tracks[track] for track in tracklist]
+                  tracklist = self.tracks.values() if tracklist is None else [self.tracks[track] for track in tracklist]
                 except KeyError as e:
                     track_label, = e.args
                     raise exceptions.NoSuchTrack(self.name, track_label)
@@ -89,7 +89,7 @@ class MidiClient(Client):
                     [track.trigger(self.port, desired_state) for track in tracklist]
                     # opposite case. turn off the tracks that shouldn't be on.
                     [track.trigger(self.port, not desired_state)
-                     for track in self.tracks if not track in tracklist]
+                     for track in self.tracks.values() if not track in tracklist]
                     
                 continue
                 #don't do this stuff. let track.trigger() handle desired_state

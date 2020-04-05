@@ -20,7 +20,7 @@ class SceneCommands(object):
     Commands that interact with a scene
     """
     def __init__(self, scenelabel=None):
-        self.context = context.get_context()
+        self.midiplexer = context.get_context().midiplexer
         if scenelabel is None:
             self._label = f"scene{len(self.context.midiplexer.scenes.keys())}"
         else:
@@ -29,6 +29,7 @@ class SceneCommands(object):
     @command
     def add_signal(self, controller=None, signal=None):
         """
+        Deprecated. Use `scene-map add` instead.
         Add a controller signal that triggers the specified scene.
         """
         if controller is None or signal is None:
@@ -40,17 +41,25 @@ class SceneCommands(object):
         except exceptions.PyMidiPlexerExceptions as e:
             cprint(e.msg, color='red')
 
-
+    @command
+    def add_track(self, clientlabel='', tracklabel=''):
+        """
+        Adds a client track to a scene.
+        """
+        self.midiplexer.command_queue.put({'add_track_to_scene':(clientlabel, tracklabel, self._label)})
+        
     @command
     def list(self):
         """
         List all scenes.
         """
+        #todo: stdout queue
         cprint(self.context.midiplexer.scenes.__str__())
 
     @command
     def create_scene_from_current(self):
         """
+        Comming soon?
         Creates a new scene with all of the currently-playing tracks in it. Yeah.
         """
         #todo: actually make this.
@@ -90,6 +99,13 @@ class ControllerCommands(object):
         register the next midi signal received
         """
         self.context.midiplexer.command_queue.put({'register_controller_signal':(self._label, signal_label)})
+
+    @command
+    def register_modeswitch(self, signal_label='modeswitch'):
+        """
+        register the next midi signal as the mode switch.
+        """
+        self.context.midiplexer.command_queue.put({'register_modeswitch':(self._label, signal_label)})
 
 @command("client")
 class ClientCommands(object):

@@ -101,15 +101,10 @@ class MidiPlexer(multiprocessing.Process):
     def add_track_to_scene(self, client: str, track_label, scene: str):
         if scene not in self.scenes.keys():
             self.add_scene(scene)
-        if self.client_track_exists(client, track_label):
-            print("track exists?")
-            if client in self.scenes[scene].keys():
-                self.scenes[scene][client].append(track_label)
-            else:
-                self.scenes[scene].update({client: [track_label]})
+        if client in self.scenes[scene].keys():
+            self.scenes[scene][client].append(track_label)
         else:
-            print("hey!")
-            raise exceptions.NoSuchTrack(client, track_label)
+            self.scenes[scene].update({client: [track_label]})
 
     def assign_track(self, controller: str, signal, client: str, track_label):
         if controller in self.controller_signal_trigger_map.keys():
@@ -135,7 +130,10 @@ class MidiPlexer(multiprocessing.Process):
             self.controller_signal_scene_map.update({controller: {signal: scene}})
 
     def assign_mode_switch(self, controller: str, signal):
-        self.mode_switch.update({controller: signal})
+        if controller not in self.mode_switch.keys():
+            self.mode_switch.update({controller: [signal]})
+        else:
+            self.mode_switch[controller].append(signal)
 
     def controller_signal_exists(self, controller: str, signal: int) -> bool:
         for c in self.controllers:
@@ -159,6 +157,8 @@ class MidiPlexer(multiprocessing.Process):
         an empty scene turns off all tracks.
         """
         self.logger.info(f"Triggering scene {scene}.")
+        self.logger.debug(self.clients)
+        self.logger.debug(self.scenes.__str__())
         for client in self.clients:
             if client.name in self.scenes[scene].keys():
                 # client has tracks in the scene. send list to event queue with desired state of True
@@ -199,7 +199,7 @@ class MidiPlexer(multiprocessing.Process):
                     continue
                 self.logger.debug(f'Received signal {signal} from controller {controller}.')
                 for c, s in self.mode_switch.items():
-                    if c == controller and s == signal:
+                    if c == controller and signal in s:
                         self.change_mode()
                         return
                 try:
@@ -209,6 +209,7 @@ class MidiPlexer(multiprocessing.Process):
                                 #todo: start in another process?
                                 self.trigger_track(client, track)
                     elif self.mode == Mode.SCENE:
+                        self.logger.debug(self.controller_signal_scene_map.__str__())
                         self.trigger_scene(self.controller_signal_scene_map[controller][signal])
                 except KeyError as e:
                     self.logger.warn(f"Registered signal {signal} on controller {controller} not in {self.mode} map.")
@@ -248,21 +249,40 @@ class MidiPlexer(multiprocessing.Process):
                         if c == 'assign_track':
                             controller, signal, client, track = command['assign_track']
                             self.assign_track(controller, signal, client, track)
+                            continue
                         if c == 'add_client':
                             name, typ = command['add_client']
                             self.add_client(name, type=typ)
+                            continue
                         if c == 'add_controller':
                             label, typ = command['add_controller']
                             self.add_controller(label, type=typ)
+                            continue
                         if c == 'register_controller_signal':
                             label, signal_label  = command['register_controller_signal']
                             self.register_controller_signal(label, signal_label=signal_label)
+                            continue
                         if c == 'client_add_track':
                             name, label, attrs = command['client_add_track']
                             self.client_add_track(name, label, attrs)
+                            continue
                         if c == 'client_list_tracks':
                             client = command['client_list_tracks']
                             self.client_list_tracks(client)
+                            continue
+                        if c == 'register_modeswitch':
+                            controller, label = command['register_modeswitch']
+                            self.register_controller_signal(controller, signal_label=label)
+                            self.assign_mode_switch(controller, label)
+                            continue
+                        if c == 'add_track_to_scene':
+                            clientlabel, tracklabel, scenelabel = command['add_track_to_scene']
+                            self.add_track_to_scene(clientlabel, tracklabel, scenelabel)
+                            continue
+                        if c == 'assign_scene':
+                            controller, signal, scene = command['assign_scene']
+                            self.assign_scene(controller, signal, scene)
+                            continue
                 except queue.Empty:
                     break
         else:
