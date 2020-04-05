@@ -1,0 +1,10 @@
+jellyfish==0.7.2
+mido==1.2.9
+prettytable==0.7.2
+prompt-toolkit==3.0.4
+Pygments==2.6.1
+pyparsing==2.4.6
+python-nubia==0.2b2
+python-rtmidi==1.4.0
+termcolor==1.1.0
+wcwidth==0.1.8
