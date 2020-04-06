@@ -16,6 +16,7 @@ class Client(multiprocessing.Process):
         self.shutdown_callback = shutdown_callback
         self.command_queue = multiprocessing.Queue()
         self.event_queue = multiprocessing.Queue()
+        self.config_queue = multiprocessing.Queue()
         self.tracks = {}
         for t in tracks:
             create_track(t)
@@ -37,8 +38,9 @@ class Client(multiprocessing.Process):
         self.event_queue.close()
         self.logger.info(f"Exiting.")
         
-    def __dict__(self):
-        return {"name": self.name, "tracks": {label: track.__dict__() for label, track in self.tracks.items()}}
+    def queue_config_dict(self):
+        self.config_queue.put({"name": self.name,
+                               "tracks": {label: track.get_config_dict() for label, track in self.tracks.items()}})
 
 class MidiClient(Client):
     """
@@ -121,6 +123,9 @@ class MidiClient(Client):
                         self.create_track(label, attrs)
                     if c == 'list_tracks':
                         self.list_tracks()
+                    if c == 'queue_config_dict':
+                        self.queue_config_dict()
+                        
             except queue.Empty:
                 break
 

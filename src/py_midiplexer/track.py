@@ -145,5 +145,5 @@ class MidiTrack(Track):
                 port.send(self.msg)
                 self.playing = False
                 
-    def __dict__(self):
+    def get_config_dict(self):
         return {"label": self.label, "type": self.typ, "attributes": self.attr_dict}

@@ -15,6 +15,7 @@ class Controller(multiprocessing.Process):
         self.signal_queue = signal_queue
         self.stdout_queue = stdout_queue
         self.command_queue = multiprocessing.Queue()
+        self.config_queue = multiprocessing.Queue()
         self.shutdown_callback = shutdown_callback
         self.check_lock = multiprocessing.Lock()
         self.type = None
@@ -47,8 +48,8 @@ class Controller(multiprocessing.Process):
         self.command_queue.close()
         self.logger.info(f"Exiting.")
         
-    def __dict__(self):
-        return {"name": self.name, "type": self.type, "signal_map": self.signal_map}
+    def queue_config_dict(self):
+        self.config_queue.put({"name": self.name, "type": self.type, "signal_map": self.signal_map})
 
 
 class MidiController(Controller):
@@ -119,6 +120,8 @@ class MidiController(Controller):
                 for c, args in command.items():
                     if c == 'register':
                         self.register(args)
+                    if c == 'queue_config_dict':
+                        self.queue_config_dict()
                 if self.command_queue.empty():
                     break
             except queue.Empty:

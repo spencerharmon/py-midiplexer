@@ -301,3 +301,10 @@ class SceneMapCommands(object):
         """
         # todo: this is broken since adding the command queue to the MidiPlexer class.
         cprint(self.midiplexer.controller_signal_scene_map.__str__())
+
+@command
+def save():
+    """
+    Save the state of pymidiplexer to a file.
+    """
+    context.get_context().midiplexer.command_queue.put({'save':()})

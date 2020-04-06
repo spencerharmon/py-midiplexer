@@ -25,6 +25,7 @@ class NubiaMidiPlexerPlugin(PluginInterface):
             AutoCommand(commands.ClientCommands),
             AutoCommand(commands.TriggerMapCommands),
             AutoCommand(commands.SceneMapCommands),
+            AutoCommand(commands.save),
             exitcmd.CustomExit()
         ]
     

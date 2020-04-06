@@ -30,6 +30,7 @@ class MidiPlexer(multiprocessing.Process):
         self.signal_queue = multiprocessing.Queue()
         self.command_queue = multiprocessing.Queue()
         self.stdout_queue = multiprocessing.Queue()
+        self.config_queue = multiprocessing.Queue()
 
         self.daemon_mode = daemon_mode
         self.config = f
@@ -283,6 +284,10 @@ class MidiPlexer(multiprocessing.Process):
                             controller, signal, scene = command['assign_scene']
                             self.assign_scene(controller, signal, scene)
                             continue
+                        if c == 'save':
+                            self.save()
+                            continue
+                        
                 except queue.Empty:
                     break
         else:
@@ -318,15 +323,21 @@ class MidiPlexer(multiprocessing.Process):
             c.join()
         self.join()
         self.logger.warn("Shutting Down.")
+        
+    def save(self):
+        #todo
+        self.queue_config_dict()
+        self.logger.debug(self.config_queue.get().__str__())
 
-    def __dict__(self):
-        return {
-            "clients": [client.__dict__() for client in self.clients],
-            "controllers": [c.__dict__() for c in self.controllers],
+    def queue_config_dict(self):
+        [client.command_queue.put({'queue_config_dict':()})for client in self.clients]
+        [c.command_queue.put({'queue_config_dict':()}) for c in self.controllers]
+        self.config_queue.put({
+            "clients": [client.config_queue.get() for client in self.clients],
+            "controllers": [c.config_queue.get() for c in self.controllers],
             "scenes": self.scenes,
             "controller_signal_scene_map": self.controller_signal_scene_map,
             "controller_signal_trigger_map": self.controller_signal_trigger_map,
             "mode_switch": self.mode_switch,
-            "mode": self.mode.value,
-        }
+        })
 
