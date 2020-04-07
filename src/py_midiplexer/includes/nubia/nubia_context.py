@@ -22,6 +22,7 @@ class NubiaContext(context.Context):
     def on_interactive(self, args):
         self.interactive=True
         self.midiplexer = MidiPlexer(f=args.config)
+        self.midiplexer.start()
         self.verbose = args.verbose
         ret = self._registry.find_command("connect").run_cli(args)
         if ret:

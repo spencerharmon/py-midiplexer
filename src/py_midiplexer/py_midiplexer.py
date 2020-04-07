@@ -10,6 +10,8 @@ import logging
 import queue
 import time
 import traceback
+import os
+import json
 
 class Mode(Enum):
     """
@@ -24,7 +26,7 @@ class Mode(Enum):
     SCENE = 2
     
 class MidiPlexer(multiprocessing.Process):
-    def __init__(self, f=None, daemon_mode=True):
+    def __init__(self, f=os.environ['HOME']+'/.config/py-midiplexer/config.json', daemon_mode=True):
         self.logger = logging.getLogger('MidiPlexer')
         self.shutdown_callback = multiprocessing.Event()
         self.signal_queue = multiprocessing.Queue()
@@ -43,48 +45,53 @@ class MidiPlexer(multiprocessing.Process):
         self.mode_switch = {}
         self.mode = Mode.TRIGGER
 
-        self.load_config()
         super().__init__()
-        if self.daemon_mode:
-            self.start()
-
-        
 
     def controller_listen(self, controller: Controller):
             signal = controller.check()
             if signal is not None:
                 self.handle_signal(controller.name, signal)
             
-    def load_config(self):
-        if self.config is not None and self.config != '':
+    def load_config(self, f=None):
+#        from .config import conf
+#        self.process_conf_dict(conf)
+#        return
+        config = f if f is not None else self.config
+        if config is not None and config != '':
             with open(self.config) as f:
-                conf = json.loads(f)
-                for ctrlr in conf['controllers']:
-                    self.add_client(ctrlr['name'], ctrlr['type'])
-                for ctrlr in self.ctrlrig.controllers:
-                    self.add_controller(ctrlr['name'], ctrlr['type']) 
-                self.scenes = conf['scenes']
-                self.controller_signal_scene_map = conf['controller_signal_scene_map']
-                self.controller_signal_trigger_map = conf['controller_signal_trigger_map']
-                self.mode_switch = conf['mode_switch']
-                self.mode = Mode(conf['mode'])
-            
-    def add_controller(self, name, type='midi'):
+                try:
+                    conf = json.load(f)
+                    self.process_conf_dict(conf)
+                    self.logger.warn("Loaded config {config}")
+                    self.logger.debug(json.dumps(conf))
+
+                except json.decoder.JSONDecodeError:
+                    self.logger.error("Invalid JSON file. Will overwrite.")
+
+    def process_conf_dict(self, conf):
+        for client in conf['clients']:
+            self.add_client(client['name'], type=client['type'], tracks=client['tracks'])
+        for ctrlr in conf['controllers']:
+            self.add_controller(ctrlr['name'], type=ctrlr['type'], signal_map=ctrlr['signal_map']) 
+        self.scenes = conf['scenes']
+        self.controller_signal_scene_map = conf['controller_signal_scene_map']
+        self.controller_signal_trigger_map = conf['controller_signal_trigger_map']
+        self.mode_switch = conf['mode_switch']
+        
+    def add_controller(self, name, type='midi', signal_map={}):
         self.logger.debug(f'command received: add controller "{name}"')
         if type == 'midi': #maybe someday we'll have an osc controller class...
-            controller = MidiController(self.shutdown_callback, self.signal_queue, self.stdout_queue, name)
+            controller = MidiController(self.shutdown_callback, self.signal_queue, self.stdout_queue, name, signal_map=signal_map)
             self.controllers.append(controller)
             if self.daemon_mode:
                 controller.start()
-            return controller
 
-    def add_client(self, name, type='midi'):
+    def add_client(self, name, type='midi', tracks={}):
         if type == 'midi': #maybe someday we'll have an osc client class...
-            client = MidiClient(self.shutdown_callback, self.stdout_queue, name)
+            client = MidiClient(self.shutdown_callback, self.stdout_queue, name, tracks=tracks)
+            self.clients.append(client)
             if self.daemon_mode:
                 client.start()
-            self.clients.append(client)
-            return client
 
     def client_add_track(self, client_name, track_label, attrs):
         for client in self.clients:
@@ -158,8 +165,6 @@ class MidiPlexer(multiprocessing.Process):
         an empty scene turns off all tracks.
         """
         self.logger.info(f"Triggering scene {scene}.")
-        self.logger.debug(self.clients)
-        self.logger.debug(self.scenes.__str__())
         for client in self.clients:
             if client.name in self.scenes[scene].keys():
                 # client has tracks in the scene. send list to event queue with desired state of True
@@ -297,6 +302,7 @@ class MidiPlexer(multiprocessing.Process):
             
 
     def run(self):
+        self.load_config()
         while not self.shutdown_callback.is_set():
             try:
                 self.handle_signals()
@@ -321,23 +327,28 @@ class MidiPlexer(multiprocessing.Process):
             c.join()
         for c in self.clients:
             c.join()
-        self.join()
         self.logger.warn("Shutting Down.")
         
-    def save(self):
+    def save(self, f=None):
         #todo
-        self.queue_config_dict()
-        self.logger.debug(self.config_queue.get().__str__())
+        config = f if f is not None else self.config
+        with open(config, 'w') as f:
+            conf = self.get_config_dict()
+            json.dump(conf, f, indent=2)
+            self.logger.warn(f"Saving to {config}")
+            self.logger.debug(str(conf))
 
     def queue_config_dict(self):
-        [client.command_queue.put({'queue_config_dict':()})for client in self.clients]
-        [c.command_queue.put({'queue_config_dict':()}) for c in self.controllers]
-        self.config_queue.put({
+        self.config_queue.put(self.get_config_dict())
+
+    def get_config_dict(self):
+       [client.command_queue.put({'queue_config_dict':()})for client in self.clients]
+       [c.command_queue.put({'queue_config_dict':()}) for c in self.controllers]
+       return {
             "clients": [client.config_queue.get() for client in self.clients],
             "controllers": [c.config_queue.get() for c in self.controllers],
             "scenes": self.scenes,
             "controller_signal_scene_map": self.controller_signal_scene_map,
             "controller_signal_trigger_map": self.controller_signal_trigger_map,
             "mode_switch": self.mode_switch,
-        })
-
+        }

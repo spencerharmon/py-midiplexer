@@ -51,7 +51,6 @@ class Controller(multiprocessing.Process):
     def queue_config_dict(self):
         self.config_queue.put({"name": self.name, "type": self.type, "signal_map": self.signal_map})
 
-
 class MidiController(Controller):
     def __init__(self,
                  shutdown_callback,

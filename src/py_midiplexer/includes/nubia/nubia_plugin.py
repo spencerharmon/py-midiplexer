@@ -5,6 +5,7 @@ from .nubia_context import NubiaContext
 from .nubia_statusbar import NubiaStatusBar
 from py_midiplexer.py_midiplexer import MidiPlexer
 from py_midiplexer.includes.nubia import commands, exitcmd
+import os
 
 
 class NubiaMidiPlexerPlugin(PluginInterface):
@@ -37,7 +38,7 @@ class NubiaMidiPlexerPlugin(PluginInterface):
         )
         
         opts_parser.add_argument(
-            "--config", "-c", default="", type=str, help="Configuration File"
+            "--config", "-c", default=os.environ['HOME']+"/.config/py-midiplexer/config.json", type=str, help="Configuration File"
         )
         opts_parser.add_argument(
             "--verbose",

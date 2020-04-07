@@ -146,4 +146,4 @@ class MidiTrack(Track):
                 self.playing = False
                 
     def get_config_dict(self):
-        return {"label": self.label, "type": self.typ, "attributes": self.attr_dict}
+        return {"label": self.label, "type": self.typ, "data": self.attr_dict}

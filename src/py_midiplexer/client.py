@@ -18,11 +18,12 @@ class Client(multiprocessing.Process):
         self.event_queue = multiprocessing.Queue()
         self.config_queue = multiprocessing.Queue()
         self.tracks = {}
-        for t in tracks:
-            create_track(t)
         super().__init__()
+        self.type = None
         self.name = name
         self.logger = logging.getLogger(f'{self.__class__.__name__}:{self.name}')
+        for label, data in tracks.items():
+            self.create_track(label, data)
 
     def create_track(self, label, data):
         """
@@ -40,17 +41,17 @@ class Client(multiprocessing.Process):
         
     def queue_config_dict(self):
         self.config_queue.put({"name": self.name,
+                               "type": self.type,
                                "tracks": {label: track.get_config_dict() for label, track in self.tracks.items()}})
 
 class MidiClient(Client):
     """
     MidiClient defines an interface for jack midi clients.
     """
-    def __init__(self, shutdown_callback, stdout_queue, name, tracks=[], backend='mido.backends.rtmidi/UNIX_JACK'):
-        super().__init__(shutdown_callback, stdout_queue, name, tracks)
+    def __init__(self, shutdown_callback, stdout_queue, name, tracks={}, backend='mido.backends.rtmidi/UNIX_JACK'):
+        super().__init__(shutdown_callback, stdout_queue, name, tracks=tracks)
         self.backend = backend
-
-
+        self.type = 'midi'
 
     def create_track(self, label, attrs):
         self.logger.debug(f"Creating track {label}: {attrs}")
