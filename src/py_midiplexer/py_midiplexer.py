@@ -33,10 +33,12 @@ class MidiPlexer(multiprocessing.Process):
         self.command_queue = multiprocessing.Queue()
         self.stdout_queue = multiprocessing.Queue()
         self.config_queue = multiprocessing.Queue()
+        self.status_queue = multiprocessing.Queue()
 
         self.daemon_mode = daemon_mode
         self.config = f
 
+        self.saved = True
         self.clients = []
         self.controllers = []
         self.scenes = {}
@@ -51,22 +53,25 @@ class MidiPlexer(multiprocessing.Process):
             signal = controller.check()
             if signal is not None:
                 self.handle_signal(controller.name, signal)
-            
+
     def load_config(self, f=None):
 #        from .config import conf
 #        self.process_conf_dict(conf)
 #        return
+        mdict = None
         config = f if f is not None else self.config
         if config is not None and config != '':
-            with open(self.config) as f:
+            with open(config) as f:
                 try:
-                    conf = json.load(f)
-                    self.process_conf_dict(conf)
-                    self.logger.warn("Loaded config {config}")
-                    self.logger.debug(json.dumps(conf))
-
+                    mdict = json.load(f)
                 except json.decoder.JSONDecodeError:
                     self.logger.error("Invalid JSON file. Will overwrite.")
+        if mdict is not None:
+            self.process_conf_dict(mdict)
+            self.logger.warn("Loaded config {config}")
+            self.logger.debug(json.dumps(mdict))
+
+            self.saved = True
 
     def process_conf_dict(self, conf):
         for client in conf['clients']:
@@ -85,6 +90,7 @@ class MidiPlexer(multiprocessing.Process):
             self.controllers.append(controller)
             if self.daemon_mode:
                 controller.start()
+        self.saved = False
 
     def add_client(self, name, type='midi', tracks={}):
         if type == 'midi': #maybe someday we'll have an osc client class...
@@ -92,11 +98,13 @@ class MidiPlexer(multiprocessing.Process):
             self.clients.append(client)
             if self.daemon_mode:
                 client.start()
+        self.saved = False
 
     def client_add_track(self, client_name, track_label, attrs):
         for client in self.clients:
             if client.name == client_name:
                 client.command_queue.put({'create_track':(track_label, attrs)})
+        self.saved = False
 
     def client_list_tracks(self, client_name):
         for client in self.clients:
@@ -105,6 +113,7 @@ class MidiPlexer(multiprocessing.Process):
                 
     def add_scene(self, scene: str):
         self.scenes.update({scene: {}})
+        self.saved = False
         
     def add_track_to_scene(self, client: str, track_label, scene: str):
         if scene not in self.scenes.keys():
@@ -113,6 +122,7 @@ class MidiPlexer(multiprocessing.Process):
             self.scenes[scene][client].append(track_label)
         else:
             self.scenes[scene].update({client: [track_label]})
+        self.saved = False
 
     def assign_track(self, controller: str, signal, client: str, track_label):
         if controller in self.controller_signal_trigger_map.keys():
@@ -125,6 +135,7 @@ class MidiPlexer(multiprocessing.Process):
                 self.controller_signal_trigger_map[controller].update({signal: {client: [track_label]}})
         else:
             self.controller_signal_trigger_map.update({controller: {signal: {client: [track_label]}}})
+        self.saved = False
         
     def assign_scene(self, controller: str, signal, scene: str):
         if scene not in self.scenes.keys():
@@ -136,12 +147,14 @@ class MidiPlexer(multiprocessing.Process):
                 self.controller_signal_scene_map[controller].update({signal: scene})
         else:
             self.controller_signal_scene_map.update({controller: {signal: scene}})
+        self.saved = False
 
     def assign_mode_switch(self, controller: str, signal):
         if controller not in self.mode_switch.keys():
             self.mode_switch.update({controller: [signal]})
         else:
             self.mode_switch[controller].append(signal)
+        self.saved = False
 
     def controller_signal_exists(self, controller: str, signal: int) -> bool:
         for c in self.controllers:
@@ -223,14 +236,15 @@ class MidiPlexer(multiprocessing.Process):
 
     
     def register_controller_signal(self, ctlrlabel, signal_label=''):
-            for c in self.controllers:
-                if c.name == ctlrlabel:
-                    if signal_label == '':
-                                label = f"signal{len(c.signal_map.values())}"
-                    else:
-                        label = signal_label
-                    self.logger.debug(f'Registering signal "{signal_label}" to controller {ctlrlabel}.')
-                    c.command_queue.put({'register': signal_label})
+        for c in self.controllers:
+            if c.name == ctlrlabel:
+                if signal_label == '':
+                            label = f"signal{len(c.signal_map.values())}"
+                else:
+                    label = signal_label
+                self.logger.debug(f'Registering signal "{signal_label}" to controller {ctlrlabel}.')
+                c.command_queue.put({'register': signal_label})
+        self.saved = False
     
     def change_mode(self):
         if self.mode == Mode.TRIGGER:
@@ -295,9 +309,17 @@ class MidiPlexer(multiprocessing.Process):
                     break
         else:
             raise exceptions.NothingToDo
-            
 
-            
+    def update_status(self):
+        try:
+            self.status_queue.get_nowait()
+        except queue.Empty:
+            pass
+        self.status_queue.put({
+            'mode': self.mode,
+            'filename': self.config,
+            'saved': self.saved
+        })
 
     def run(self):
         self.load_config()
@@ -314,8 +336,9 @@ class MidiPlexer(multiprocessing.Process):
             except exceptions.NothingToDo:
                 wait = True
             if wait:
+                self.update_status()
                 time.sleep(0.008)
-        # Shutdown Callback is set
+            # Shutdown Callback is set
         self.logger.warn("MidiPlexer stopped.")
             
 

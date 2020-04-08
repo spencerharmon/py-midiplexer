@@ -4,7 +4,7 @@ from pygments.token import Token
 
 from nubia import context
 from nubia import statusbar
-
+import queue
 
 class NubiaStatusBar(statusbar.StatusBar):
     def __init__(self, context):
@@ -22,24 +22,36 @@ class NubiaStatusBar(statusbar.StatusBar):
 
     def get_tokens(self):
         token_list = []
+        try:
+            status = context.get_context().midiplexer.status_queue.get_nowait()
 
-        spacer = (Token.Spacer, "  ")
+            spacer = (Token.Spacer, "  ")
 
-        if self._first_command:
-            token_list.append((Token.Toolbar, "Welcome to"))
-        
-        token_list.append((Token.Toolbar, "py-midiplexer"))
-        
-        if self._first_command:
-            token_list.append((Token.Toolbar, "!"))
+            if self._first_command:
+                token_list.append((Token.Toolbar, "Welcome to "))
+
+            token_list.append((Token.Toolbar, "py-midiplexer"))
+
+            if self._first_command:
+                token_list.append((Token.Toolbar, "!"))
+
+            token_list.append(spacer)
+
+            token_list.append((Token.Toolbar, "Mode: "))
+            if status['mode'] == Mode.TRIGGER:
+                token_list.append((Token.Warn, "Trigger"))
+            elif status['mode'] == Mode.SCENE:
+                token_list.append((Token.Info, "Scene"))
+
+            token_list.append(spacer)
+
+            token_list.append((Token.Toolbar, status['filename']))
+
+            if not status['saved']:
+                token_list.append((Token.Toolbar, '*'))
             
-        token_list.append(spacer)
-        
-        token_list.append((Token.Toolbar, "Mode: "))
-        if context.get_context().midiplexer.mode == Mode.TRIGGER:
-            token_list.append((Token.Warn, "Trigger"))
-        elif context.get_context().midiplexer.mode == Mode.SCENE:
-            token_list.append((Token.Info, "Scene"))
+        except queue.Empty:
+            pass
 
         return token_list
 
