@@ -182,10 +182,8 @@ class MidiPlexer(multiprocessing.Process):
         """
         self.logger.info(f"Triggering track {client} {track}.")
         for c in self.clients:
-            print(c.name)
             if c.name == client:
-                print("check")
-            self.trigger_event(c, [track], None)
+                self.trigger_event(c, [track], None)
 
     def trigger_event(self, client: Client, tracklist: list, desired_state):
         if self.mode == Mode.TRIGGER:

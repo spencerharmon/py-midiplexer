@@ -71,6 +71,8 @@ class MidiClient(Client):
         while True:
             try:
                 (tracklist, desired_state) = self.event_queue.get_nowait()
+                self.logger.debug('Received event.')
+
                 # list of track instances for event. Queued tracklist of None is equivalent to "all"
                 desired_state = False if tracklist is None else desired_state
                 try:
@@ -79,7 +81,7 @@ class MidiClient(Client):
                     track_label, = e.args
                     raise exceptions.NoSuchTrack(self.name, track_label)
 
-                self.logger.debug('Received event. Track '
+                self.logger.debug('Track '
                                   f'{tracklist} desired state is '
                                   f'{"on" if desired_state else "off"}'
                                   f'{None if desired_state is None else ""}')

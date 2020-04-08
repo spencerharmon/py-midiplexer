@@ -1,3 +1,4 @@
+import logging
 class Track(object):
     """
     Generic track superclass.
@@ -6,6 +7,7 @@ class Track(object):
         self.label = label
         #always initiate to false?
         self.playing=False
+        self.logger = logging.getLogger(f'{__class__.__name__}:{str(self.label)}')
 
     def trigger(self, port):
         pass
@@ -127,6 +129,7 @@ class MidiTrack(Track):
             return mido.Message(self.typ)
 
     def trigger(self, port, desired_state):
+        the_same = self.playing
         if desired_state is None:
             #trigger mode
             if self.playing:
@@ -134,6 +137,7 @@ class MidiTrack(Track):
             else:
                 self.playing=True
             port.send(self.msg)
+            
         elif desired_state:
             #desired playing
             if not self.playing:
@@ -145,5 +149,10 @@ class MidiTrack(Track):
                 port.send(self.msg)
                 self.playing = False
                 
+        if self.playing is not the_same:
+            m = {False: "not playing",
+                 True: "playing"}
+            self.logger.debug(f'State changed from {m[the_same]} to {m[self.playing]}.')
+
     def get_config_dict(self):
         return {"label": self.label, "type": self.typ, "data": self.attr_dict}
