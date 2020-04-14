@@ -64,8 +64,9 @@ class MidiPlexer(multiprocessing.Process):
             with open(config) as f:
                 try:
                     mdict = json.load(f)
-                except json.decoder.JSONDecodeError:
+                except json.decoder.JSONDecodeError as e:
                     self.logger.error("Invalid JSON file. Will overwrite.")
+                    self.logger.error(''.join(traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__)))
         if mdict is not None:
             self.process_conf_dict(mdict)
             self.logger.warn("Loaded config {config}")

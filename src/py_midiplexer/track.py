@@ -23,9 +23,24 @@ import mido
 class MidiTrack(Track):
     def __init__(self, label, attrs):
         super().__init__(label)
-        self.attr_dict = attrs['data']
+        # three types of data are accepted. 'data' can be thought of as a default.
+        # on_ and off_ contain overrides for data when called in the on or off context determined in trigger.
+        try:
+            self.default_data = attrs['data']
+        except KeyError:
+            self.default_data = {}
+
+        try:
+            self.on_data = attrs['on_data']
+        except KeyError:
+            self.on_data = {}
+
+        try:
+            self.off_data = attrs['off_data']
+        except KeyError:
+            self.off_data = {}
         self.typ = attrs['type']
-        self.msg = self.get_msg()
+        self.reset_to_default_data()
 
     def get_msg(self) -> mido.Message:
         """
@@ -128,31 +143,59 @@ class MidiTrack(Track):
         elif self.typ == "reset":
             return mido.Message(self.typ)
 
+    def update_msg_for_blank_signal(self, datadict):
+        for k, v in datadict.items():
+            self.logger.debug(f"changing data; {k}: {v}")
+            self.attr_dict.update({k: v})
+        msg = {"type":self.typ, "data":self.attr_dict}
+        self.logger.debug(f"Updating message: {msg.__str__()}")
+            
+    def reset_to_default_data(self):
+        self.attr_dict = {}
+        self.update_msg_for_blank_signal(self.default_data)
+        
+    def update_msg_for_on_signal(self):
+        self.update_msg_for_blank_signal(self.on_data)
+        
+    def update_msg_for_off_signal(self):
+        self.update_msg_for_blank_signal(self.off_data)
+
     def trigger(self, port, desired_state):
+        """
+        trigger sends a signal on the given port in necessary to achieve the desired state. If on_data or off_data
+        config items are used, they are applied durint this step.       
+        """
         the_same = self.playing
         if desired_state is None:
             #trigger mode
             if self.playing:
                 self.playing=False
+                self.update_msg_for_off_signal()
             else:
                 self.playing=True
-            port.send(self.msg)
+                self.update_msg_for_on_signal()
+            port.send(self.get_msg())
             
         elif desired_state:
             #desired playing
             if not self.playing:
-                port.send(self.msg)
+                self.update_msg_for_on_signal()
+                port.send(self.get_msg())
                 self.playing = True
         else:
             # desired stopped
             if self.playing:
-                port.send(self.msg)
+                self.update_msg_for_off_signal()
+                port.send(self.get_msg())
                 self.playing = False
                 
         if self.playing is not the_same:
             m = {False: "not playing",
                  True: "playing"}
             self.logger.debug(f'State changed from {m[the_same]} to {m[self.playing]}.')
+
+        #always reset to default, I guess..
+        self.reset_to_default_data()
 
     def get_config_dict(self):
         return {"label": self.label, "type": self.typ, "data": self.attr_dict}
