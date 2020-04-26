@@ -22,7 +22,7 @@ class SceneCommands(object):
     def __init__(self, scenelabel=None):
         self.midiplexer = context.get_context().midiplexer
         if scenelabel is None:
-            self._label = f"scene{len(self.context.midiplexer.scenes.keys())}"
+            self._label = f"scene{len(self.midiplexer.scenes.keys())}"
         else:
             self._label = scenelabel
         
@@ -54,16 +54,15 @@ class SceneCommands(object):
         List all scenes.
         """
         #todo: stdout queue
-        cprint(self.context.midiplexer.scenes.__str__())
+        self.midiplexer.command_queue.put({"list_scenes":()})
+        cprint(self.midiplexer.stdout_queue.get().__str__())
 
     @command
     def create_scene_from_current(self):
         """
-        Comming soon?
-        Creates a new scene with all of the currently-playing tracks in it. Yeah.
+        Overwrites or creates a scene with all of the currently-playing tracks in it. 
         """
-        #todo: actually make this.
-        pass
+        self.midiplexer.command_queue.put({"create_scene_from_current":(self._label,)})
 
 
 @command("controller")

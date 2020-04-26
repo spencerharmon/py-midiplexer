@@ -17,6 +17,7 @@ class Client(multiprocessing.Process):
         self.command_queue = multiprocessing.Queue()
         self.event_queue = multiprocessing.Queue()
         self.config_queue = multiprocessing.Queue()
+        self.trackstate_queue = multiprocessing.Queue()
         self.tracks = {}
         super().__init__()
         self.type = None
@@ -43,6 +44,12 @@ class Client(multiprocessing.Process):
         self.config_queue.put({"name": self.name,
                                "type": self.type,
                                "tracks": {label: track.get_config_dict() for label, track in self.tracks.items()}})
+
+    def queue_trackstate_playing(self):
+        """
+        puts a list of playing tracks on the trackstate_queue
+        """
+        self.trackstate_queue.put([label for label, track in self.tracks.items() if track.playing])
 
 class MidiClient(Client):
     """
@@ -128,6 +135,8 @@ class MidiClient(Client):
                         self.list_tracks()
                     if c == 'queue_config_dict':
                         self.queue_config_dict()
+                    if c == 'queue_trackstate_playing':
+                        self.queue_trackstate_playing()
                         
             except queue.Empty:
                 break

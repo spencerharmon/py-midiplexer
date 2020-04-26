@@ -54,6 +54,21 @@ class MidiPlexer(multiprocessing.Process):
             if signal is not None:
                 self.handle_signal(controller.name, signal)
 
+
+    def create_scene_from_current(self, scene_label):
+        """
+        Adds a new scene to the config based on the currently-playing tracks across all clients
+        """
+        scene_dict = {}
+        for client in self.clients:
+            client.command_queue.put({'queue_trackstate_playing':None})
+            scene_dict.update({client.name: client.trackstate_queue.get()})
+        self.scenes.update({scene_label: scene_dict})
+
+        self.saved = False
+            
+        
+
     def load_config(self, f=None):
 #        from .config import conf
 #        self.process_conf_dict(conf)
@@ -305,6 +320,11 @@ class MidiPlexer(multiprocessing.Process):
                         if c == 'save':
                             self.save()
                             continue
+                        if c == 'create_scene_from_current':
+                            scenelabel, = command['create_scene_from_current']
+                            self.create_scene_from_current(scenelabel)
+                        if c == 'list_scenes':
+                            self.stdout_queue.put(self.scenes)
                         
                 except queue.Empty:
                     break
