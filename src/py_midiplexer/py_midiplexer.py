@@ -323,8 +323,13 @@ class MidiPlexer(multiprocessing.Process):
                         if c == 'create_scene_from_current':
                             scenelabel, = command['create_scene_from_current']
                             self.create_scene_from_current(scenelabel)
-                        if c == 'list_scenes':
+                        if c == 'get_scenes_stdout':
                             self.stdout_queue.put(self.scenes)
+                        if c == 'get_trigger_map_stdout':
+                            self.stdout_queue.put(self.controller_signal_trigger_map)
+                        if c == 'get_scene_map_stdout':
+                            self.stdout_queue.put(self.controller_signal_scene_map)
+
                         
                 except queue.Empty:
                     break

@@ -54,7 +54,8 @@ class SceneCommands(object):
         List all scenes.
         """
         #todo: stdout queue
-        self.midiplexer.command_queue.put({"list_scenes":()})
+        self.midiplexer.command_queue.put({"get_scenes_stdout":()})
+        
         cprint(self.midiplexer.stdout_queue.get().__str__())
 
     @command
@@ -263,8 +264,8 @@ class TriggerMapCommands(object):
         """
         show the trigger map.
         """
-        # todo: this is broken since adding the command queue to the MidiPlexer class.
-        cprint(self.midiplexer.controller_signal_trigger_map.__str__())
+        self.midiplexer.command_queue.put({"get_trigger_map_stdout":()})
+        cprint(self.midiplexer.stdout_queue.get().__str__())
         
 @command("scene-map")
 class SceneMapCommands(object):
@@ -298,8 +299,9 @@ class SceneMapCommands(object):
         """
         show the scene map.
         """
-        # todo: this is broken since adding the command queue to the MidiPlexer class.
-        cprint(self.midiplexer.controller_signal_scene_map.__str__())
+        self.midiplexer.command_queue.put({"get_scene_map_stdout":()})
+        cprint(self.midiplexer.stdout_queue.get().__str__())
+
 
 @command
 def save():
