@@ -33,12 +33,23 @@ class MidiTrack(Track):
         try:
             self.on_data = attrs['on_data']
         except KeyError:
-            self.on_data = {}
+            self.on_signal_data = {}
 
         try:
-            self.off_data = attrs['off_data']
+            self.off_signal_data = attrs['off_data']
         except KeyError:
-            self.off_data = {}
+            self.off_signal_data = {}
+            
+        try:
+            self.record_signal_data = attrs['record_signal_data']
+        except KeyError:
+            self.record_signal_data = {}
+            
+        if 'toggle_record' in attrs.keys():
+            self.toggle_record = attrs['toggle_record']
+        else:
+            self.toggle_record = False
+            
         self.typ = attrs['type']
         self.reset_to_default_data()
 
@@ -155,10 +166,13 @@ class MidiTrack(Track):
         self.update_msg_for_blank_signal(self.default_data)
         
     def update_msg_for_on_signal(self):
-        self.update_msg_for_blank_signal(self.on_data)
+        self.update_msg_for_blank_signal(self.on_signal_data)
         
     def update_msg_for_off_signal(self):
-        self.update_msg_for_blank_signal(self.off_data)
+        self.update_msg_for_blank_signal(self.off_signal_data)
+        
+    def update_msg_for_record_signal(self):
+        self.update_msg_for_blank_signal(self.record_signal_data)
 
     def trigger(self, port, desired_state):
         """
@@ -166,7 +180,13 @@ class MidiTrack(Track):
         config items are used, they are applied durint this step.       
         """
         the_same = self.playing
-        if desired_state is None:
+        
+        if self.toggle_record:
+            self.toggle_record = False
+            self.playing = False
+            self.update_msg_for_record_signal()
+
+        elif desired_state is None:
             #trigger mode
             if self.playing:
                 self.playing=False
@@ -174,19 +194,16 @@ class MidiTrack(Track):
             else:
                 self.playing=True
                 self.update_msg_for_on_signal()
-            port.send(self.get_msg())
             
         elif desired_state:
             #desired playing
             if not self.playing:
                 self.update_msg_for_on_signal()
-                port.send(self.get_msg())
                 self.playing = True
         else:
             # desired stopped
             if self.playing:
                 self.update_msg_for_off_signal()
-                port.send(self.get_msg())
                 self.playing = False
                 
         if self.playing is not the_same:
@@ -194,6 +211,7 @@ class MidiTrack(Track):
                  True: "playing"}
             self.logger.debug(f'State changed from {m[the_same]} to {m[self.playing]}.')
 
+        port.send(self.get_msg())
         #always reset to default, I guess..
         self.reset_to_default_data()
 

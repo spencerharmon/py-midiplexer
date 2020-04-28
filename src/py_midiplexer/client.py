@@ -11,7 +11,7 @@ class Client(multiprocessing.Process):
     Name is a string.
     Each track is a Track object.
     """
-    def __init__(self, shutdown_callback, stdout_queue, name: str, tracks: list):
+    def __init__(self, shutdown_callback, stdout_queue, name: str, tracks: list, toggle_record=False):
         self.stdout_queue = stdout_queue
         self.shutdown_callback = shutdown_callback
         self.command_queue = multiprocessing.Queue()
@@ -19,6 +19,7 @@ class Client(multiprocessing.Process):
         self.config_queue = multiprocessing.Queue()
         self.trackstate_queue = multiprocessing.Queue()
         self.tracks = {}
+        self.toggle_record=toggle_record
         super().__init__()
         self.type = None
         self.name = name
@@ -55,12 +56,19 @@ class MidiClient(Client):
     """
     MidiClient defines an interface for jack midi clients.
     """
-    def __init__(self, shutdown_callback, stdout_queue, name, tracks={}, backend='mido.backends.rtmidi/UNIX_JACK'):
-        super().__init__(shutdown_callback, stdout_queue, name, tracks=tracks)
+    def __init__(self,
+                 shutdown_callback,
+                 stdout_queue,
+                 name,
+                 tracks={},
+                 toggle_record=False,
+                 backend='mido.backends.rtmidi/UNIX_JACK'):
+        super().__init__(shutdown_callback, stdout_queue, name, tracks=tracks, toggle_record=toggle_record)
         self.backend = backend
         self.type = 'midi'
 
     def create_track(self, label, attrs):
+        attrs['toggle_record'] = self.toggle_record
         self.logger.debug(f"Creating track {label}: {attrs}")
         self.tracks.update({label: MidiTrack(label, attrs)})
     
@@ -137,6 +145,12 @@ class MidiClient(Client):
                         self.queue_config_dict()
                     if c == 'queue_trackstate_playing':
                         self.queue_trackstate_playing()
+                    if c == 'toggle_record':
+                        track, = command[c]
+                        try:
+                            self.tracks[track].toggle_record = True
+                        except KeyError:
+                            pass
                         
             except queue.Empty:
                 break

@@ -118,12 +118,12 @@ class ClientCommands(object):
         self.logger = logging.getLogger(self.__class__.__name__)
             
     @command
-    def add(self, type='midi'):
+    def add(self, toggle_record=False, type='midi'):
         """
         Create the named client. In midi mode, Creates an output jack port. 
 
         """
-        client = self.midiplexer.command_queue.put({'add_client': (self.name, type)})
+        client = self.midiplexer.command_queue.put({'add_client': (self.name, toggle_record, type)})
 
     @command
     def add_track(self,

@@ -91,7 +91,7 @@ class MidiPlexer(multiprocessing.Process):
 
     def process_conf_dict(self, conf):
         for client in conf['clients']:
-            self.add_client(client['name'], type=client['type'], tracks=client['tracks'])
+            self.add_client(client['name'], toggle_record=client['toggle_record'], type=client['type'], tracks=client['tracks'])
         for ctrlr in conf['controllers']:
             self.add_controller(ctrlr['name'], type=ctrlr['type'], signal_map=ctrlr['signal_map']) 
         self.scenes = conf['scenes']
@@ -108,9 +108,9 @@ class MidiPlexer(multiprocessing.Process):
                 controller.start()
         self.saved = False
 
-    def add_client(self, name, type='midi', tracks={}):
+    def add_client(self, name, toggle_record=False, type='midi', tracks={}):
         if type == 'midi': #maybe someday we'll have an osc client class...
-            client = MidiClient(self.shutdown_callback, self.stdout_queue, name, tracks=tracks)
+            client = MidiClient(self.shutdown_callback, self.stdout_queue, name, tracks=tracks, toggle_record=toggle_record)
             self.clients.append(client)
             if self.daemon_mode:
                 client.start()
@@ -285,8 +285,8 @@ class MidiPlexer(multiprocessing.Process):
                             self.assign_track(controller, signal, client, track)
                             continue
                         if c == 'add_client':
-                            name, typ = command['add_client']
-                            self.add_client(name, type=typ)
+                            name, typ, toggle_record = command['add_client']
+                            self.add_client(name, toggle_record=toggle_record, type=typ)
                             continue
                         if c == 'add_controller':
                             label, typ = command['add_controller']
@@ -329,6 +329,9 @@ class MidiPlexer(multiprocessing.Process):
                             self.stdout_queue.put(self.controller_signal_trigger_map)
                         if c == 'get_scene_map_stdout':
                             self.stdout_queue.put(self.controller_signal_scene_map)
+                        if c == 'track_toggle_record':
+                            clientlabel, tracklabel = command[c]
+                            self.track_toggle_record(clientlabel, tracklabel)
 
                         
                 except queue.Empty:
@@ -336,6 +339,12 @@ class MidiPlexer(multiprocessing.Process):
         else:
             raise exceptions.NothingToDo
 
+    def track_toggle_record(self, clientlabel, tracklabel):
+        for client in self.clients:
+            if client.name == clientlabel:
+                client.command_queue.put({'toggle_record':(tracklabel,)})
+
+        
     def update_status(self):
         try:
             self.status_queue.get_nowait()
