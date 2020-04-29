@@ -126,6 +126,13 @@ class ClientCommands(object):
         client = self.midiplexer.command_queue.put({'add_client': (self.name, toggle_record, type)})
 
     @command
+    def clear(self, tracklabel):
+        """
+        sets a track's toggle_record state to True and playing state to false. "resets" luppp tracks.
+        """    
+        self.midiplexer.command_queue.put({'track_toggle_record':(self.name, tracklabel)})
+
+    @command
     def add_track(self,
                      label="",
                      midi_type="",

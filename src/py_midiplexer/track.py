@@ -181,37 +181,47 @@ class MidiTrack(Track):
         """
         the_same = self.playing
         
-        if self.toggle_record:
-            self.toggle_record = False
-            self.playing = False
-            self.update_msg_for_record_signal()
 
-        elif desired_state is None:
+        if desired_state is None:
+
+            if self.toggle_record:
+                self.toggle_record = False
+                self.playing = False
+                self.update_msg_for_record_signal()            
+                port.send(self.get_msg())
             #trigger mode
             if self.playing:
                 self.playing=False
                 self.update_msg_for_off_signal()
+                port.send(self.get_msg())
             else:
                 self.playing=True
                 self.update_msg_for_on_signal()
+                port.send(self.get_msg())
             
-        elif desired_state:
-            #desired playing
-            if not self.playing:
-                self.update_msg_for_on_signal()
-                self.playing = True
         else:
-            # desired stopped
-            if self.playing:
-                self.update_msg_for_off_signal()
-                self.playing = False
-                
+            #scene mode
+            if self.toggle_record:
+                #scene mode does not trigger if toggle_record is on.
+                return
+            if desired_state:
+            #desired playing
+                if not self.playing:
+                    self.update_msg_for_on_signal()
+                    self.playing = True
+                    port.send(self.get_msg())
+            else:
+                # desired stopped
+                if self.playing:
+                    self.update_msg_for_off_signal()
+                    self.playing = False
+                    port.send(self.get_msg())
+
         if self.playing is not the_same:
             m = {False: "not playing",
                  True: "playing"}
             self.logger.debug(f'State changed from {m[the_same]} to {m[self.playing]}.')
 
-        port.send(self.get_msg())
         #always reset to default, I guess..
         self.reset_to_default_data()
 

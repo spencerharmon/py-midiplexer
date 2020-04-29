@@ -149,6 +149,7 @@ class MidiClient(Client):
                         track, = command[c]
                         try:
                             self.tracks[track].toggle_record = True
+                            self.tracks[track].playing = False
                         except KeyError:
                             pass
                         
