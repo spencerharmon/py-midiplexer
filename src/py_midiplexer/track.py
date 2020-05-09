@@ -189,8 +189,9 @@ class MidiTrack(Track):
                 self.playing = False
                 self.update_msg_for_record_signal()            
                 port.send(self.get_msg())
+                self.logger.debug(f"Track {self.label} is recording.")
             #trigger mode
-            if self.playing:
+            elif self.playing:
                 self.playing=False
                 self.update_msg_for_off_signal()
                 port.send(self.get_msg())
