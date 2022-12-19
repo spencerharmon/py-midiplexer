@@ -8,9 +8,10 @@ import sys
 from nubia import Nubia, Options
 from .includes.nubia.nubia_plugin import NubiaMidiPlexerPlugin
 
+
 if __name__ == "__main__":
     muxer = MidiPlexer()
-    
+
     plugin = NubiaMidiPlexerPlugin(muxer)
     shell = Nubia(
         name="py_midiplexer",
@@ -39,8 +40,8 @@ fc300.register('switch')
 
 
 non = mux.add_client("non-sequencer")
-non.create_track(0, 'control_change', {'control':20, 'value':0})
-non.create_track(1, 'control_change', {'control':20, 'value':1})
+non.create_track(0, 'control_change', {'control': 20, 'value': 0})
+non.create_track(1, 'control_change', {'control': 20, 'value': 1})
 
 mux.assign_mode_switch("fc300", 'switch')
 

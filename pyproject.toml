@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "py-midiplexer"
+version = "0.1.0"
+description = "multiplex midi signals"
+repository = "https://github.com/spencerharmon/py-midiplexer"
+authors = ["Spencer Harmon <the.spencer.harmon@gmail.com>"]
+license = "GPL-3.0-or-later"
+#readme = "README.md"
+packages = [{include = "py_midiplexer"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+jellyfish = "0.7.2"
+mido = "1.2.9"
+prettytable = "0.7.2"
+prompt-toolkit = "3.0.36"
+Pygments = "2.6.1"
+pyparsing = "2.4.6"
+python-nubia = "0.2b5"
+python-rtmidi = "1.4.9"
+termcolor = "1.1.0"
+wcwidth = "0.2.5"
+
+[tool.poetry.scripts]
+py-midiplexer = 'py_midiplexer.main:main'
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
